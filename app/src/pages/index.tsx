@@ -1,16 +1,26 @@
 import Head from "next/head";
 import { Inter } from "next/font/google";
 const inter = Inter({ subsets: ["latin"] });
-
-import { Core } from "@walletconnect/core";
-import { Web3Wallet } from "@walletconnect/web3wallet";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 
+import { useNetwork } from "wagmi";
+import { SimpleAccountAPI, HttpRpcClient } from "@account-abstraction/sdk";
+import { useEthersSigner, useEthersProvider } from "@/hooks/useEthers";
+import { ENTRY_POINT_ADDRESS, GOERLI_RPC_URL, SIMPLE_ACCOUNT_FACTORY_ADDRESS } from "@/configs";
+
 export default function Page() {
-  const [privateKey, setPrivateKey] = useState("");
   const [wallet, setWallet] = useState<ethers.Wallet>();
+  const [accountAPI, setAccountAPI] = useState<SimpleAccountAPI>();
+  const [walletConnectURL, setWalletConnectURL] = useState("");
+  const [balance, setBalance] = useState("0");
+  const [to] = useState(ethers.constants.AddressZero);
+  const [data] = useState("0x");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const [unsignedUserOp, setUnsignedUserOp] = useState<any>();
+  const [userOpHash, setUserOpHash] = useState("");
 
   useEffect(() => {
     let privateKey = localStorage.getItem("privateKey");
@@ -22,47 +32,54 @@ export default function Page() {
     } else {
       wallet = new ethers.Wallet(privateKey);
     }
-    setPrivateKey(privateKey);
+    const provider = new ethers.providers.JsonRpcProvider(GOERLI_RPC_URL);
+    wallet.connect(provider);
+    const walletAPI = new SimpleAccountAPI({
+      provider,
+      entryPointAddress: ENTRY_POINT_ADDRESS,
+      owner: wallet,
+      factoryAddress: SIMPLE_ACCOUNT_FACTORY_ADDRESS,
+    });
     setWallet(wallet);
+    walletAPI.getAccountAddress().then((address) => {
+      walletAPI.accountAddress = address;
+      provider.getBalance(address).then((balance) => {
+        setBalance(ethers.utils.formatEther(balance));
+      });
+      setAccountAPI(walletAPI);
+      walletAPI
+        .createUnsignedUserOp({
+          target: ethers.constants.AddressZero,
+          data: "0x",
+        })
+        .then((unSignedUserOp) => {
+          unSignedUserOp.preVerificationGas = 500000;
+          unSignedUserOp.paymasterAndData = process.env.NEXT_PUBLIC_OPL_ACCOUNT_ABSTRACTION_PAYMASTER || "";
+          ethers.utils.resolveProperties(unSignedUserOp).then((resolvedUnsignedUserOp) => {
+            setUnsignedUserOp(resolvedUnsignedUserOp);
+            walletAPI.getUserOpHash(resolvedUnsignedUserOp).then((userOpHash) => {
+              setUserOpHash(userOpHash);
+            });
+          });
+        });
+    });
   }, []);
 
-  const handleConnectByWalletConnect = async () => {
-    console.log("test");
-    const metadata = {
-      name: "Demo app",
-      description: "Demo Client as Wallet/Peer",
-      url: "www.walletconnect.com",
-      icons: [],
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto"; // or 'visible' if you want
+    }
+    return () => {
+      document.body.style.overflow = "auto"; // reset on unmount
     };
+  }, [isModalOpen]);
 
-    const core = new Core({
-      projectId: process.env.NEXT_PUBLIC_PROJECT_ID,
-    });
+  // this is not implemented for now
+  const handleConnectByWalletConnect = async () => {};
 
-    const web3wallet = await Web3Wallet.init({
-      core, // <- pass the shared `core` instance
-      metadata,
-    });
-    console.log("web3wallet", web3wallet);
-    web3wallet.on("session_proposal", async (proposal) => {
-      console.log(proposal);
-      const session = await web3wallet.approveSession({
-        id: proposal.id,
-        namespaces: {
-          eip155: {
-            accounts: ["eip155:5:0x00000c9b10039702e0587E587623f6a6786e4F7B"],
-            chains: ["eip155:5"],
-            methods: ["eth_sendTransaction", "personal_sign"],
-            events: ["chainChanged", "accountsChanged"],
-          },
-        },
-      });
-    });
-    console.log("web3wallet", web3wallet);
-    await web3wallet.core.pairing.pair({
-      uri: "wc:3794e951daad838372e45de76807eb1d7c7cfe117f8f85bd97ab8558fa0e80d8@2?relay-protocol=irn&symKey=f766161645c70301fd5d646fb937357352577ca437ab9efc512a55e72cad17d0",
-    });
-  };
+  const handleSetSecretSponsor = async () => {};
 
   return (
     <div className={`min-h-screen bg-gradient-to-br from-blue-400 to-blue-600 flex flex-col ${inter.className}`}>
@@ -89,20 +106,21 @@ export default function Page() {
           <form className="space-y-4">
             <div>
               <label className="block text-gray-700 text-md font-medium mb-2">Account Abstraction Owner Address</label>
-              <p className="block text-gray-700 text-sm">
-                {/* Dynamically display owner address here */}
-                0xOwnerAddressHere...
-              </p>
+              <p className="block text-gray-700 text-sm">{wallet && wallet.address}</p>
             </div>
 
             <div>
               <label className="block text-gray-700 text-md font-medium mb-2">
                 Account Abstraction Account Address
               </label>
-              <p className="block text-gray-700 text-sm">
-                {/* Dynamically display account address here */}
-                0xAccountAddressHere...
-              </p>
+              <p className="block text-gray-700 text-sm">{accountAPI && accountAPI.accountAddress}</p>
+            </div>
+
+            <div>
+              <label className="block text-gray-700 text-md font-medium mb-2">
+                Account Abstraction Account Balance
+              </label>
+              <p className="block text-gray-700 text-sm">{balance} ETH</p>
             </div>
 
             <div>
@@ -114,13 +132,18 @@ export default function Page() {
                 type="text"
                 id="walletConnectURL"
                 placeholder="Enter WalletConnect URL"
+                disabled={true}
+                value={walletConnectURL}
+                onChange={(e) => setWalletConnectURL(e.target.value)}
               />
             </div>
 
             <div>
               <button
                 type="button"
-                className="w-full p-2 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-600 hover:to-blue-800"
+                className="w-full p-2 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:enabled:from-blue-600 hover:enabled:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleConnectByWalletConnect}
+                disabled={!walletConnectURL || !accountAPI || !accountAPI.accountAddress}
               >
                 Connect
               </button>
@@ -128,22 +151,65 @@ export default function Page() {
 
             <div className="space-y-2">
               <label className="block text-gray-700 text-md font-medium mb-2">Transaction Preview</label>
-              <p className="text-gray-700 text-sm">To: {/* To value here */}</p>
-              <p className="text-gray-700 text-sm">Data: {/* Data value here */}</p>
-              <p className="text-gray-700 text-sm">Value: {/* Value here */}</p>
+              <p className="text-gray-700 text-xs font-medium">To</p>
+              <p className="text-gray-700 text-xs">{to}</p>
+              <p className="text-gray-700 text-xs font-medium">Data</p>
+              <p className="text-gray-700 text-xs">{data}</p>
             </div>
 
             <div>
               <button
                 type="button"
-                className="w-full p-2 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-600 hover:to-blue-800"
+                className="w-full p-2 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:enabled:from-blue-600 hover:enabled:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!unsignedUserOp}
+                onClick={() => setIsModalOpen(true)}
               >
-                Send
+                {!unsignedUserOp ? "Creating User Operation..." : "Send Tx with Secret Sponsor"}
               </button>
             </div>
           </form>
         </div>
       </div>
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black opacity-50" onClick={() => setIsModalOpen(false)}></div>
+          <div className="relative z-10 bg-white py-4 px-6 rounded-xl shadow-lg max-w-lg w-full mx-4">
+            <header className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-700">Secret Sponsor Tx</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-2xl text-gray-400 hover:text-gray-500">
+                &times;
+              </button>
+            </header>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-gray-700 text-md font-medium mb-2">User Operation Preview</label>
+                <pre
+                  className="p-2 rounded border border-gray-200 bg-gray-50 overflow-x-auto overflow-y-auto max-h-60"
+                  style={{ fontSize: "10px" }}
+                >
+                  <code className="break-all">{JSON.stringify(unsignedUserOp, null, 2)}</code>
+                </pre>
+              </div>
+              <div>
+                <label className="block text-gray-700 text-md font-medium mb-2">User Operation Hash</label>
+                <p className="block text-gray-700 text-xs">{userOpHash}</p>
+              </div>
+              <button
+                type="button"
+                className="w-full p-2 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:enabled:from-blue-600 hover:enabled:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Set Secret Sponsor
+              </button>
+              <button
+                type="button"
+                className="w-full p-2 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:enabled:from-blue-600 hover:enabled:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Send Transaction
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
