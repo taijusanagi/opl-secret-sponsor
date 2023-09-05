@@ -5,8 +5,27 @@ const inter = Inter({ subsets: ["latin"] });
 import { Core } from "@walletconnect/core";
 import { Web3Wallet } from "@walletconnect/web3wallet";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useEffect, useState } from "react";
+import { ethers } from "ethers";
 
 export default function Page() {
+  const [privateKey, setPrivateKey] = useState("");
+  const [wallet, setWallet] = useState<ethers.Wallet>();
+
+  useEffect(() => {
+    let privateKey = localStorage.getItem("privateKey");
+    let wallet: ethers.Wallet;
+    if (!privateKey) {
+      wallet = ethers.Wallet.createRandom();
+      privateKey = wallet.privateKey;
+      localStorage.setItem("privateKey", privateKey);
+    } else {
+      wallet = new ethers.Wallet(privateKey);
+    }
+    setPrivateKey(privateKey);
+    setWallet(wallet);
+  }, []);
+
   const handleConnectByWalletConnect = async () => {
     console.log("test");
     const metadata = {
@@ -52,65 +71,74 @@ export default function Page() {
       </Head>
 
       {/* Header Section */}
-      <div className="flex justify-end items-center p-4">
+      <div className="flex justify-end items-center p-4 mb-24">
         <ConnectButton />
       </div>
 
       {/* Hero Section */}
-      <div className="flex flex-col items-center justify-center my-10">
-        <h1 className="text-white text-4xl font-bold mb-2">
-          Stealth Sponsor
-          <span className="ml-2 inline-block animate-rotate">⛽️</span>
-        </h1>
-        <p className="text-white text-lg">Stealth gas sponsoring with Oasis Privacy Layer and Account Abstraction</p>
+      <div className="flex flex-col items-center justify-center mb-12">
+        <span className="text-7xl inline-block transform rotate-45 mb-6">⛽️</span>
+
+        <h1 className="text-white text-4xl font-bold mb-2">Stealth Sponsor</h1>
+        <p className="text-white text-lg">Stealth AA gas sponsoring with Oasis Privacy Layer</p>
       </div>
 
       {/* Form Section */}
-      <div className="flex items-center justify-center flex-grow">
-        <div className="bg-white p-8 rounded-lg shadow-md w-96 border border-blue-200">
+      <div className="flex items-center justify-center flex-grow mb-24">
+        <div className="bg-white py-6 px-4 rounded-lg shadow-md max-w-lg w-full border border-blue-200">
           <form className="space-y-4">
             <div>
-              <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="name">
-                Name
+              <label className="block text-gray-700 text-md font-medium mb-2">Account Abstraction Owner Address</label>
+              <p className="block text-gray-700 text-sm">
+                {/* Dynamically display owner address here */}
+                0xOwnerAddressHere...
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-gray-700 text-md font-medium mb-2">
+                Account Abstraction Account Address
+              </label>
+              <p className="block text-gray-700 text-sm">
+                {/* Dynamically display account address here */}
+                0xAccountAddressHere...
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-gray-700 text-md font-medium mb-2" htmlFor="walletConnectURL">
+                WalletConnect URL
               </label>
               <input
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full px-2 py-3 border border-gray-300 rounded-md text-sm"
                 type="text"
-                id="name"
-                placeholder="Enter your name"
+                id="walletConnectURL"
+                placeholder="Enter WalletConnect URL"
               />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="email">
-                Email
-              </label>
-              <input
-                className="w-full p-2 border border-gray-300 rounded"
-                type="email"
-                id="email"
-                placeholder="Enter your email"
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="message">
-                Message
-              </label>
-              <textarea
-                className="w-full p-2 border border-gray-300 rounded"
-                id="message"
-                placeholder="Enter your message"
-                rows={4}
-              ></textarea>
             </div>
 
             <div>
               <button
-                type="submit"
-                className="w-full p-2 rounded bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-600 hover:to-blue-800"
+                type="button"
+                className="w-full p-2 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-600 hover:to-blue-800"
               >
-                Submit
+                Connect
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-gray-700 text-md font-medium mb-2">Transaction Preview</label>
+              <p className="text-gray-700 text-sm">To: {/* To value here */}</p>
+              <p className="text-gray-700 text-sm">Data: {/* Data value here */}</p>
+              <p className="text-gray-700 text-sm">Value: {/* Value here */}</p>
+            </div>
+
+            <div>
+              <button
+                type="button"
+                className="w-full p-2 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-600 hover:to-blue-800"
+              >
+                Send
               </button>
             </div>
           </form>
