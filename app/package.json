@@ -4,7 +4,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "format": "npx prettier --write . --ignore-path .gitignore"
   },
   "dependencies": {
     "@account-abstraction/sdk": "^0.6.0",
