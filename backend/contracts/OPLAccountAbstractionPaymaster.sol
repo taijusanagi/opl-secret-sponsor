@@ -18,19 +18,20 @@ contract OPLAccountAbstractionPaymaster is BasePaymaster {
         UserOperation calldata userOp,
         bytes32 /*userOpHash*/,
         uint256 requiredPreFund
-    ) internal view override returns (bytes memory context, uint256 validationData) {}
+    ) internal view override returns (bytes memory context, uint256 validationData) {
+        // validate the userOp
+    }
 
-    // @dev
-    // 1. send remaining gas fee to the handler
     function _postOp(
         PostOpMode mode,
         bytes calldata context,
         uint256 actualGasCost
     ) internal override {
+        // TODO: process refund
         // add value
-        uint256 remainingGasFee = address(this).balance - actualGasCost;
-        if (remainingGasFee > 0) {
-            handler.refund{value: remainingGasFee}();
-        }
+        // uint256 remainingGasFee = address(this).balance - actualGasCost;
+        // if (remainingGasFee > 0) {
+        //     handler.refund{value: remainingGasFee}();
+        // }
     }
 }

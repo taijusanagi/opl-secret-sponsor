@@ -2,7 +2,8 @@
 // https://github.com/oasisprotocol/sapphire-paratime/blob/main/contracts/contracts/opl/Endpoint.sol
 // Then extended for our purposes.
 
-// SPDX-License-Identifier: Apache-2.0
+// This is copied code, so no licence specified.
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
