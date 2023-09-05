@@ -8,6 +8,9 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       chainId: 1337, // @see https://hardhat.org/metamask-issue.html
+      forking: {
+        url: 'https://rpc.ankr.com/eth_goerli',
+      },
     },
     local: {
       url: 'http://127.0.0.1:8545',

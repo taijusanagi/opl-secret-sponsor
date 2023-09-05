@@ -3,26 +3,35 @@ pragma solidity ^0.8.0;
 
 import {Enclave, Result, autoswitch} from "@oasisprotocol/sapphire-contracts/contracts/OPL.sol";
 
-contract OPLAccountAbstractionEnclave is Enclave {
+// import "hardhat/console.sol";
 
+contract OPLAccountAbstractionEnclave is Enclave {
     struct Lock {
         address payable sender;
         uint256 amount;
     }
 
-    mapping (address => mapping(bytes32=>Lock)) public locks;
+    event UnlockSecretGasFee(address account, bytes32 userOpHash, uint256 unusedAmount);
 
-    constructor(address handler) Enclave(handler, autoswitch("sapphire")) {
-        registerEndpoint("refundSecretGasFee", _unlockSecretGasFee);
+    mapping(address => mapping(bytes32 => Lock)) public locks;
+
+    constructor(address handler) Enclave(handler, autoswitch("ethereum")) {
+        registerEndpoint("unlockSecretGasFee", _unlockSecretGasFee);
     }
 
     // @dev
     // For simplicity, locked balance can only be withdrawn by callback, but it can support conditioned force withdraw for error case.
     function _unlockSecretGasFee(bytes calldata args) internal returns (Result) {
-        (address account, bytes32 userOpHash, uint256 actualGasCost) = abi.decode(args, (address, bytes32, uint256));
+        (address account, bytes32 userOpHash, uint256 actualGasCost) = abi.decode(
+            args,
+            (address, bytes32, uint256)
+        );
         Lock memory lock = locks[account][userOpHash];
         delete locks[account][userOpHash];
-        lock.sender.transfer(lock.amount - actualGasCost);
+        uint256 unusedAmount = lock.amount - actualGasCost;
+        lock.sender.transfer(unusedAmount);
+        emit UnlockSecretGasFee(account, userOpHash, unusedAmount);
+        return Result.Success;
     }
 
     // @dev
@@ -33,5 +42,4 @@ contract OPLAccountAbstractionEnclave is Enclave {
         locks[account][userOpHash] = Lock(payable(msg.sender), amount);
         postMessage("sendSecretGasFee", abi.encode(account, userOpHash, amount));
     }
-
 }
