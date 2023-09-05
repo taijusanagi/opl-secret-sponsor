@@ -1,10 +1,11 @@
 # p4w3
 
-### Addresses
+### Deployed Addresses
 
-https://im-docs.celer.network/developer/contract-addresses-and-rpc-info
+#### OPLAccountAbstractionPaymaster
 
-```
-Oasis Sapphire Testnet cBridge: 0x9B36f165baB9ebe611d491180418d8De4b8f3a1f
-MessageBus: 0x9Bb46D5100d2Db4608112026951c9C965b233f4D
-```
+https://goerli.etherscan.io/address/0x00e5fE614e0786Db18C0bFe13F02216A4396ECdd
+
+#### OPLAccountAbstractionEnclave
+
+https://testnet.explorer.sapphire.oasis.dev/address/0xdBcE2eF23CF05551D7Ca788020948E8F123cecfB
