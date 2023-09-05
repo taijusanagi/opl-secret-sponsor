@@ -5,7 +5,6 @@ import {Host, Result} from "@oasisprotocol/sapphire-contracts/contracts/OPL.sol"
 import "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 
 contract OPLAccountAbstractionHandler is Host {
-
     constructor(address _host, IEntryPoint entryPoint) Host(_host) {
         registerEndpoint("sendUserOp", _sendUserOp);
     }
@@ -18,5 +17,4 @@ contract OPLAccountAbstractionHandler is Host {
     function refund() external payable {
         postMessage("refund", abi.encode());
     }
-
 }
