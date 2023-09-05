@@ -5,10 +5,11 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 
-import { useNetwork } from "wagmi";
 import { SimpleAccountAPI, HttpRpcClient } from "@account-abstraction/sdk";
-import { useEthersSigner, useEthersProvider } from "@/hooks/useEthers";
-import { ENTRY_POINT_ADDRESS, GOERLI_RPC_URL, SIMPLE_ACCOUNT_FACTORY_ADDRESS } from "@/configs";
+import { useEthersSigner } from "@/hooks/useEthers";
+import { ENTRY_POINT_ADDRESS, GOERLI_BUNDLER_URL, GOERLI_RPC_URL, SIMPLE_ACCOUNT_FACTORY_ADDRESS } from "@/configs";
+import { oplAccountAbstractionEnclaveABI } from "@/lib/abi/OPLAccountAbstractionEnclave";
+import { oplAccountAbstractionPaymasterABI } from "@/lib/abi/OPLAccountAbstractionPaymaster";
 
 export default function Page() {
   const [wallet, setWallet] = useState<ethers.Wallet>();
@@ -21,6 +22,11 @@ export default function Page() {
 
   const [unsignedUserOp, setUnsignedUserOp] = useState<any>();
   const [userOpHash, setUserOpHash] = useState("");
+  const [secretSponsorAmount, setSecretSponsorAmount] = useState("0");
+  const [sendSecretSponsorTxHash, setSendSecretSponsorTxHash] = useState("");
+  const [requestId, setRequestId] = useState("");
+
+  const signer = useEthersSigner();
 
   useEffect(() => {
     let privateKey = localStorage.getItem("privateKey");
@@ -41,9 +47,9 @@ export default function Page() {
       factoryAddress: SIMPLE_ACCOUNT_FACTORY_ADDRESS,
     });
     setWallet(wallet);
-    walletAPI.getAccountAddress().then((address) => {
-      walletAPI.accountAddress = address;
-      provider.getBalance(address).then((balance) => {
+    walletAPI.getAccountAddress().then((accountAddress) => {
+      walletAPI.accountAddress = accountAddress;
+      provider.getBalance(accountAddress).then((balance) => {
         setBalance(ethers.utils.formatEther(balance));
       });
       setAccountAPI(walletAPI);
@@ -59,6 +65,20 @@ export default function Page() {
             setUnsignedUserOp(resolvedUnsignedUserOp);
             walletAPI.getUserOpHash(resolvedUnsignedUserOp).then((userOpHash) => {
               setUserOpHash(userOpHash);
+              const contract = new ethers.Contract(
+                process.env.NEXT_PUBLIC_OPL_ACCOUNT_ABSTRACTION_PAYMASTER || "",
+                oplAccountAbstractionPaymasterABI,
+                provider
+              );
+              const intervalId = setInterval(() => {
+                contract.lockedAmount(accountAddress, userOpHash).then((lockedAmount: ethers.BigNumber) => {
+                  console.log("secret sponsor amount:", lockedAmount);
+                  if (lockedAmount.gt(0)) {
+                    setSecretSponsorAmount(ethers.utils.formatEther(lockedAmount));
+                    clearInterval(intervalId);
+                  }
+                });
+              }, 5000);
             });
           });
         });
@@ -79,12 +99,39 @@ export default function Page() {
   // this is not implemented for now
   const handleConnectByWalletConnect = async () => {};
 
-  const handleSetSecretSponsor = async () => {};
+  const handleSendSecretSponsor = async () => {
+    if (!signer || !accountAPI || !accountAPI.accountAddress) {
+      return;
+    }
+    const oplAccountAbstractionEnclave = new ethers.Contract(
+      process.env.NEXT_PUBLIC_OPL_ACCOUNT_ABSTRACTION_ENCLAVE || "",
+      oplAccountAbstractionEnclaveABI,
+      signer
+    );
+    const tx = await oplAccountAbstractionEnclave.sendSecretGasFeeToHostPaymaster(
+      accountAPI.accountAddress,
+      userOpHash,
+      {
+        value: ethers.utils.parseEther("0.1"),
+      }
+    );
+    setSendSecretSponsorTxHash(tx.hash);
+  };
+
+  const handleSendUserOp = async () => {
+    if (!accountAPI) {
+      return;
+    }
+    const httpRPCClient = new HttpRpcClient(GOERLI_BUNDLER_URL, ENTRY_POINT_ADDRESS, 5);
+    const signedUserOp = await accountAPI.signUserOp(unsignedUserOp);
+    const requestId = await httpRPCClient.sendUserOpToBundler(signedUserOp);
+    setRequestId(requestId);
+  };
 
   return (
     <div className={`min-h-screen bg-gradient-to-br from-blue-400 to-blue-600 flex flex-col ${inter.className}`}>
       <Head>
-        <title>Simple Form</title>
+        <title>Secret Sponsor</title>
       </Head>
 
       {/* Header Section */}
@@ -96,8 +143,8 @@ export default function Page() {
       <div className="flex flex-col items-center justify-center mb-12">
         <span className="text-7xl inline-block transform rotate-45 mb-6">⛽️</span>
 
-        <h1 className="text-white text-4xl font-bold mb-2">Stealth Sponsor</h1>
-        <p className="text-white text-lg">Stealth AA gas sponsoring with Oasis Privacy Layer</p>
+        <h1 className="text-white text-4xl font-bold mb-2">Secret Sponsor</h1>
+        <p className="text-white text-lg">Secret AA gas sponsoring with Oasis Privacy Layer</p>
       </div>
 
       {/* Form Section */}
@@ -173,7 +220,7 @@ export default function Page() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black opacity-50" onClick={() => setIsModalOpen(false)}></div>
-          <div className="relative z-10 bg-white py-4 px-6 rounded-xl shadow-lg max-w-lg w-full mx-4">
+          <div className="relative z-10 bg-white py-4 px-6 rounded-xl shadow-lg max-w-xl w-full mx-4">
             <header className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-gray-700">Secret Sponsor Tx</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-2xl text-gray-400 hover:text-gray-500">
@@ -197,14 +244,32 @@ export default function Page() {
               <button
                 type="button"
                 className="w-full p-2 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:enabled:from-blue-600 hover:enabled:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleSendSecretSponsor}
+                disabled={!signer || !accountAPI || !accountAPI.accountAddress || !!sendSecretSponsorTxHash}
               >
-                Set Secret Sponsor
+                Send Secret Sponsor to Sapphire
               </button>
+              {sendSecretSponsorTxHash && (
+                <div>
+                  <label className="block text-gray-700 text-md font-medium mb-2">Set Secret Sponsor Tx</label>
+                  <p className="block text-gray-700 text-xs">{sendSecretSponsorTxHash}</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-gray-700 text-md font-medium mb-2">Secret Sponsor Amount</label>
+                <p className="block text-gray-700 text-xs">
+                  {secretSponsorAmount !== "0" ? secretSponsorAmount : "Waiting for synced with Goerli..."}
+                </p>
+              </div>
+
               <button
                 type="button"
                 className="w-full p-2 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:enabled:from-blue-600 hover:enabled:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={secretSponsorAmount === "0"}
+                onClick={handleSendUserOp}
               >
-                Send Transaction
+                Send User Operation to Goerli Bundler
               </button>
             </div>
           </div>
