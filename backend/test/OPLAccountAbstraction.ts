@@ -2,10 +2,8 @@ import { SimpleAccountAPI } from '@account-abstraction/sdk';
 import { EntryPoint__factory } from '@account-abstraction/contracts';
 
 import { ethers } from 'hardhat';
-import { expect } from "chai";
-
-const ENTRY_POINT_ADDRESS = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789';
-const SIMPLE_ACCOUNT_FACTORY_ADDRESS = '0x9406Cc6185a346906296840746125a0E44976454';
+import { expect } from 'chai';
+import { ENTRY_POINT_ADDRESS, SIMPLE_ACCOUNT_FACTORY_ADDRESS } from '../configs';
 
 describe('OPLAccountAbstraction', function () {
   describe('Integration', function () {
@@ -48,14 +46,18 @@ describe('OPLAccountAbstraction', function () {
       const op = await walletAPI.signUserOp(unsignedUserOp);
       const entryPoint = EntryPoint__factory.connect(ENTRY_POINT_ADDRESS, signer);
       const userOpHash = await entryPoint.getUserOpHash(op);
-      const sendSecretGasFeeToHostPaymasterTx= await oplAccountAbstractionEnclave.sendSecretGasFeeToHostPaymaster(
-        accountAddress,
-        userOpHash,
-        { value: ethers.utils.parseEther('0.1') },
+      const sendSecretGasFeeToHostPaymasterTx =
+        await oplAccountAbstractionEnclave.sendSecretGasFeeToHostPaymaster(
+          accountAddress,
+          userOpHash,
+          { value: ethers.utils.parseEther('0.1') },
+        );
+      await expect(sendSecretGasFeeToHostPaymasterTx).to.emit(
+        oplAccountAbstractionPaymaster,
+        'SendSecretGasFee',
       );
-      await expect(sendSecretGasFeeToHostPaymasterTx).to.emit(oplAccountAbstractionPaymaster, 'SendSecretGasFee')
-      const handleOpsTx = await entryPoint.handleOps([op], beneficiary.address)
-      await expect(handleOpsTx).to.emit(oplAccountAbstractionEnclave, 'UnlockSecretGasFee')
+      const handleOpsTx = await entryPoint.handleOps([op], beneficiary.address);
+      await expect(handleOpsTx).to.emit(oplAccountAbstractionEnclave, 'UnlockSecretGasFee');
     });
   });
 });

@@ -1,5 +1,42 @@
-import { HardhatUserConfig } from 'hardhat/config';
+import { HardhatUserConfig, task } from 'hardhat/config';
 import '@nomicfoundation/hardhat-toolbox';
+import { ENTRY_POINT_ADDRESS } from './configs';
+
+task('deploy-enclave')
+  .addParam('hostNetwork')
+  .setAction(async (args, hre) => {
+    await hre.run('compile');
+    const ethers = hre.ethers;
+    const OPLAccountAbstractionEnclave = await ethers.getContractFactory('OPLAccountAbstractionEnclave');
+    const signer = ethers.provider.getSigner();
+    const signerAddr = await signer.getAddress();
+    const hostConfig = hre.config.networks[args.hostNetwork];
+    if (!('url' in hostConfig)) throw new Error(`${args.hostNetwork} not configured`);
+    const provider = new ethers.providers.JsonRpcProvider(hostConfig.url);
+    let nonce = await provider.getTransactionCount(signerAddr);
+    if (args.hostNetwork === 'local') nonce++;
+    const expectedOPLAccountAbstractionPaymasterAddress = ethers.utils.getContractAddress({ from: signerAddr, nonce });
+    const oplLAccountAbstractionEnclave = await OPLAccountAbstractionEnclave.deploy(expectedOPLAccountAbstractionPaymasterAddress);
+    await oplLAccountAbstractionEnclave.deployed();
+    console.log('expectedOPLAccountAbstractionPaymaster', expectedOPLAccountAbstractionPaymasterAddress);
+    console.log('oplAccountAbstractionEnclave', oplLAccountAbstractionEnclave.address);
+    return oplLAccountAbstractionEnclave.address;
+  });
+
+task('deploy-paymaster')
+  .addParam('enclaveAddr')
+  .setAction(async (args, hre) => {
+    await hre.run('compile');
+    const OPLAccountAbstractionPaymaster = await hre.ethers.getContractFactory('OPLAccountAbstractionPaymaster');
+    const oplAccountAbstractionPaymaster = await OPLAccountAbstractionPaymaster.deploy(ENTRY_POINT_ADDRESS, args.enclaveAddr);
+    await oplAccountAbstractionPaymaster.deployed();
+    console.log('oplAccountAbstractionPaymaster', oplAccountAbstractionPaymaster.address);
+    await oplAccountAbstractionPaymaster.addStake(1, { value: 1 });
+    console.log('oplAccountAbstractionPaymaster - staked');
+    await oplAccountAbstractionPaymaster.deposit({ value: hre.ethers.utils.parseEther('0.1') });
+    console.log('oplAccountAbstractionPaymaster - depositted');
+    return oplAccountAbstractionPaymaster.address;
+  });
 
 const accounts = process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [];
 
