@@ -1,3 +1,4 @@
+import "@oasisprotocol/sapphire-hardhat";
 import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import { ENTRY_POINT_ADDRESS } from "./configs";
@@ -30,6 +31,7 @@ task("deploy-paymaster")
   .setAction(async (args, hre) => {
     await hre.run("compile");
     const OPLAccountAbstractionPaymaster = await hre.ethers.getContractFactory("OPLAccountAbstractionPaymaster");
+    // const oplAccountAbstractionPaymaster = await OPLAccountAbstractionPaymaster.attach("");
     const oplAccountAbstractionPaymaster = await OPLAccountAbstractionPaymaster.deploy(
       ENTRY_POINT_ADDRESS,
       args.enclaveAddr,
@@ -43,6 +45,21 @@ task("deploy-paymaster")
     await depositTx.wait();
     console.log("oplAccountAbstractionPaymaster - depositted", depositTx.hash);
     return oplAccountAbstractionPaymaster.address;
+  });
+
+task("fund-userop")
+  .addParam("paymasterAddr")
+  .addParam("account")
+  .addParam("userOpHash")
+  .setAction(async (args, hre) => {
+    await hre.run("compile");
+    const OPLAccountAbstractionPaymaster = await hre.ethers.getContractFactory("OPLAccountAbstractionPaymaster");
+    const oplAccountAbstractionPaymaster = await OPLAccountAbstractionPaymaster.attach(args.paymasterAddr);
+    const tx = await oplAccountAbstractionPaymaster.debugAddAmount(args.account, args.userOpHash, {
+      value: hre.ethers.utils.parseEther("0.1"),
+    });
+    await tx.wait();
+    console.log("fund-userop", tx.hash);
   });
 
 const accounts = process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [];

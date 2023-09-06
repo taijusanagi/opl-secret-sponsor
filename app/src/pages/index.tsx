@@ -6,10 +6,11 @@ import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 
 import { SimpleAccountAPI, HttpRpcClient } from "@account-abstraction/sdk";
-import { useEthersSigner } from "@/hooks/useEthers";
-import { ENTRY_POINT_ADDRESS, GOERLI_BUNDLER_URL, GOERLI_RPC_URL, SIMPLE_ACCOUNT_FACTORY_ADDRESS } from "@/configs";
+// import { useEthersSigner } from "@/hooks/useEthers";
+import { ENTRY_POINT_ADDRESS, GOERLI_RPC_URL, SIMPLE_ACCOUNT_FACTORY_ADDRESS } from "@/configs";
 import { oplAccountAbstractionEnclaveABI } from "@/lib/abi/OPLAccountAbstractionEnclave";
 import { oplAccountAbstractionPaymasterABI } from "@/lib/abi/OPLAccountAbstractionPaymaster";
+import { useSapphire } from "@/hooks/useSapphire";
 
 export default function Page() {
   const [wallet, setWallet] = useState<ethers.Wallet>();
@@ -26,7 +27,8 @@ export default function Page() {
   const [sendSecretSponsorTxHash, setSendSecretSponsorTxHash] = useState("");
   const [requestId, setRequestId] = useState("");
 
-  const signer = useEthersSigner();
+  // const signer = useEthersSigner();
+  const { sapphireWrappedSigner } = useSapphire();
 
   useEffect(() => {
     let privateKey = localStorage.getItem("privateKey");
@@ -100,13 +102,13 @@ export default function Page() {
   const handleConnectByWalletConnect = async () => {};
 
   const handleSendSecretSponsor = async () => {
-    if (!signer || !accountAPI || !accountAPI.accountAddress) {
+    if (!sapphireWrappedSigner || !accountAPI || !accountAPI.accountAddress) {
       return;
     }
     const oplAccountAbstractionEnclave = new ethers.Contract(
       process.env.NEXT_PUBLIC_OPL_ACCOUNT_ABSTRACTION_ENCLAVE || "",
       oplAccountAbstractionEnclaveABI,
-      signer
+      sapphireWrappedSigner
     );
     const tx = await oplAccountAbstractionEnclave.sendSecretGasFeeToHostPaymaster(
       accountAPI.accountAddress,
@@ -122,7 +124,7 @@ export default function Page() {
     if (!accountAPI) {
       return;
     }
-    const httpRPCClient = new HttpRpcClient(GOERLI_BUNDLER_URL, ENTRY_POINT_ADDRESS, 5);
+    const httpRPCClient = new HttpRpcClient(process.env.NEXT_PUBLIC_BUNDLER_URL || "", ENTRY_POINT_ADDRESS, 5);
     const signedUserOp = await accountAPI.signUserOp(unsignedUserOp);
     const requestId = await httpRPCClient.sendUserOpToBundler(signedUserOp);
     setRequestId(requestId);
@@ -144,7 +146,7 @@ export default function Page() {
         <span className="text-7xl inline-block transform rotate-45 mb-6">⛽️</span>
 
         <h1 className="text-white text-4xl font-bold mb-2">Secret Sponsor</h1>
-        <p className="text-white text-lg">Secret AA gas sponsoring with Oasis Privacy Layer</p>
+        <p className="text-white text-lg">Account Abstraction Secret gas sponsoring with Oasis Privacy Layer</p>
       </div>
 
       {/* Form Section */}
@@ -245,32 +247,59 @@ export default function Page() {
                 type="button"
                 className="w-full p-2 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:enabled:from-blue-600 hover:enabled:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleSendSecretSponsor}
-                disabled={!signer || !accountAPI || !accountAPI.accountAddress || !!sendSecretSponsorTxHash}
+                disabled={
+                  !sapphireWrappedSigner ||
+                  !accountAPI ||
+                  !accountAPI.accountAddress ||
+                  !!sendSecretSponsorTxHash ||
+                  secretSponsorAmount !== "0"
+                }
               >
-                Send Secret Sponsor to Sapphire
+                {sapphireWrappedSigner ? "Secret Sponsor through Sapphire" : "Connect Wallet First"}
               </button>
               {sendSecretSponsorTxHash && (
                 <div>
                   <label className="block text-gray-700 text-md font-medium mb-2">Set Secret Sponsor Tx</label>
-                  <p className="block text-gray-700 text-xs">{sendSecretSponsorTxHash}</p>
+                  <p className="block text-xs">
+                    <a
+                      className="text-blue-500"
+                      href={`https://testnet.explorer.sapphire.oasis.dev/tx/${sendSecretSponsorTxHash}`}
+                    >
+                      {sendSecretSponsorTxHash}
+                    </a>
+                  </p>
                 </div>
               )}
-
-              <div>
-                <label className="block text-gray-700 text-md font-medium mb-2">Secret Sponsor Amount</label>
-                <p className="block text-gray-700 text-xs">
-                  {secretSponsorAmount !== "0" ? secretSponsorAmount : "Waiting for synced with Goerli..."}
-                </p>
-              </div>
+              {(sendSecretSponsorTxHash || secretSponsorAmount !== "0") && (
+                <div>
+                  <label className="block text-gray-700 text-md font-medium mb-2">Secret Sponsor Amount</label>
+                  <p className="block text-gray-700 text-xs">
+                    {secretSponsorAmount !== "0" ? secretSponsorAmount : "Waiting for synced with Goerli..."}
+                  </p>
+                </div>
+              )}
 
               <button
                 type="button"
                 className="w-full p-2 rounded-md bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:enabled:from-blue-600 hover:enabled:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={secretSponsorAmount === "0"}
+                disabled={secretSponsorAmount === "0" || !!requestId}
                 onClick={handleSendUserOp}
               >
                 Send User Operation to Goerli Bundler
               </button>
+              {requestId && (
+                <div>
+                  <label className="block text-gray-700 text-md font-medium mb-2">Set Secret Sponsor Tx</label>
+                  <p className="block text-xs">
+                    <a
+                      className="text-blue-500"
+                      href={`https://www.jiffyscan.xyz/userOpHash/${requestId}?network=goerli`}
+                    >
+                      {requestId}
+                    </a>
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

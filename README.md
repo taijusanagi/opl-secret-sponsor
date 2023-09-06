@@ -1,6 +1,6 @@
 # Secret Sponsor
 
-Secret gas sponsoring with Oasis Privacy Layer and Account Abstraction.
+Account Abstraction Secret Gas Sponsoring with Oasis Privacy Layer.
 
 ### Deployed Addresses
 
