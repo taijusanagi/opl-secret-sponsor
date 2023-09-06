@@ -4,19 +4,35 @@ Account Abstraction Secret Gas Sponsoring with Oasis Privacy Layer.
 
 ![top](./asset/screenshot-1.png)
 
+## Submission
+
+### Live App
+
+Cominig soon!!
+
+### Pitch Deck
+
+https://docs.google.com/presentation/d/1q-E1k1spXqwVkbmQEpyljRFbDZX4P03jGf7bnFkKYk4/edit?usp=sharing
+
+### Video Demo
+
+https://youtu.be/JnP3FGQu4ds
+
 ## Problem Statement
 
 Ensuring user privacy can be a complex challenge both technically and from a regulatory standpoint. Excessive privacy provisions can sometimes inadvertently enable undesirable activities such as money laundering. Consequently, smaller users find it difficult to maintain an optimal level of privacy.
 
 ## Solution & Benefits:
 
-Secret Sponsor offers a mechanism for anonymous gas-sponsoring, incorporating account abstraction and the Oasis Privacy Layer. Users can:
+Secret Sponsor offers a mechanism for anonymous gas-sponsoring, incorporating account abstraction and the Oasis Privacy Layer.
+
+Users can stay anonymous by:
 
 - Initiate encrypted funding transactions in Sapphire.
 - Bridge these funds to the Goerli account abstraction paymaster.
 - Execute transactions without incurring gas fees.
 
-Moreover, since only gas-sponsoring is involved, it's challenging to link it with malicious activities like money laundering. This setup also holds potential for NFT artists, allowing them to curate anonymous collections while retaining their anonymity.
+Moreover, because the system focuses solely on gas-sponsoring, it becomes difficult to associate it with illicit actions such as money laundering. This is optimal privacy tailored for smaller users, particularly NFT artists.
 
 ## Technical Overview:
 
@@ -40,7 +56,7 @@ https://testnet.explorer.sapphire.oasis.dev/address/0xe976D36a90fAE9E590f17F2835
 
 ##### Fund Tx
 
-https://testnet.explorer.sapphire.oasis.dev/tx/0x8bee73d024663c416897fa869b222690936478aba4d7c1229565cfac4085ffd7
+https://explorer.oasis.io/testnet/sapphire/tx/0x8bee73d024663c416897fa869b222690936478aba4d7c1229565cfac4085ffd7
 
 ## Future Roadmap
 
