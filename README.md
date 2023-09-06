@@ -8,7 +8,7 @@ Account Abstraction Secret Gas Sponsoring with Oasis Privacy Layer.
 
 ### Live App
 
-Cominig soon!!
+https://opl-secret-sponsor.vercel.app/
 
 ### Pitch Deck
 
@@ -57,6 +57,19 @@ https://testnet.explorer.sapphire.oasis.dev/address/0xe976D36a90fAE9E590f17F2835
 ##### Fund Tx
 
 https://explorer.oasis.io/testnet/sapphire/tx/0x8bee73d024663c416897fa869b222690936478aba4d7c1229565cfac4085ffd7
+
+## Challenges we ran into
+
+- Working with the on-chain privacy layer was a new experience for me. Initially, understanding its function and application was challenging.
+- Some preconditions were tricky to manage. I frequently sought help from the Oasis Discord community.
+
+## Accomplishments that we're proud of
+
+- I managed to integrate the Oasis Privacy Layer with an area I'm well-versed in - Account Abstraction. This showcased the immense potential of combining Account Abstraction with the Oasis Privacy Layer.
+
+## What we learned
+
+- On-chain privacy is truly invaluable!
 
 ## Future Roadmap
 
